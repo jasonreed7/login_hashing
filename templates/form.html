@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			.error {
+				color: red;
+			}
+		</style>
+	</head>
+	<body>
+		<form method="post">
+			<div>	
+				<label>Username 
+					<input type="text" name="username" value="{% if username and username.value %}{{username.value}}{% endif %}">
+					{% if username and username.error %}
+						<span class="error">Please enter a valid username</span>
+					{% endif %}
+					{% if username and username.taken %}
+						<span class="error">That username is already taken</span>
+					{% endif %}
+				</label>
+			</div>
+			<div>
+				<label>Password 
+					<input type="password" name="password">
+					{% if password_error %}
+						<span class="error">Please enter a valid password</span>
+					{% endif %}
+				</label>
+			</div>
+			<div>
+				<label>Verify password
+					<input type="password" name="verify">
+					{% if verify_error %}
+						<span class="error">Does not match password</span>
+					{% endif %}
+				</label>
+			</div>
+			<div>
+				<label>Email (optional) 
+					<input type="text" name="email" value="{% if email and email.value %}{{email.value}}{% endif %}">
+					{% if email and email.error %}
+						<span class="error">Please enter a valid email</span>
+					{% endif %}
+				</label>
+			</div>
+			<div>
+				<input type="submit">
+			</div>
+		</form>
+	</body>
+</html>
