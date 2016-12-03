@@ -14,8 +14,13 @@
 
 import os
 import re
+import random
+import string
 import jinja2
 import webapp2
+import hashlib
+import hmac
+
 
 from google.appengine.ext import db
 
@@ -36,6 +41,8 @@ def valid_password(password):
 def valid_email(email):
 	return EMAIL_RE.match(email)
 
+# For cookies
+SECRET = 'hZ5x8DFDp2rvP2fK'
 def hash_str(s):
 	return hmac.new(SECRET, s).hexdigest()
 
@@ -46,6 +53,22 @@ def check_secure_val(h):
 	val = h.split('|')[0]
 	if h == make_secure_val(val):
 		return val
+
+# For passwords
+def make_salt():
+    return ''.join(random.choice(string.letters) for x in xrange(5))
+
+def make_pw_hash(name, pw, salt=None):
+    if not salt:
+        salt = make_salt()
+    h = hashlib.sha256(name + pw + salt).hexdigest()
+    return '%s,%s' % (h, salt)
+
+def valid_pw(name, pw, h):
+    ###Your code here
+    salt = h.split(',')[1]
+    if h == make_pw_hash(name, pw, salt):
+        return True
 
 class User(db.Model):
 	username = db.StringProperty(required=True)
@@ -80,10 +103,11 @@ class MainPage(Handler):
 
 		if not(username['value'] and valid_username(username['value'])):
 			username['error'] = True
+			self.write('username error')
 		else:
 			q = User.all()
-			username_match = q.filter('username=', username)
-			if(username.match.count() > 0):
+			q.filter('username =', username['value'])
+			if(q.count() > 0):
 				username['taken'] = True
 
 		if not(password and valid_password(password)):
@@ -101,11 +125,11 @@ class MainPage(Handler):
 
 
 			# Hash password and store user info
-			password_hash = bcrypt.hashpw(password, bcrypt.gensalt())
-			user = User(username=username['value'], password_hash=password)
+			password_hash = make_pw_hash(username['value'], password)
+			user = User(username=username['value'], password_hash=password_hash)
 			user.put()
 
-			id = user.key().id()
+			id = str(user.key().id())
 			id_cookie = 'id=' + make_secure_val(id)
 
 			id_cookie += '; Path=/'
@@ -117,11 +141,13 @@ class MainPage(Handler):
 class WelcomeHandler(Handler):
 	def get(self):
 		id_cookie = self.request.cookies.get('id')
-		id = check_secure_val(id_cookie)
+		id = int(check_secure_val(id_cookie))
 		if id:
 			user = User.get_by_id(id)
 			if user:
 				self.write('<div>Welcome ' + user.username + '</div>')
+			else:
+				self.write('User not found')
 		else:
 			self.write('Invalid authorization')
 
