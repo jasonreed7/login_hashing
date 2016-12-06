@@ -70,6 +70,18 @@ def valid_pw(name, pw, h):
     if h == make_pw_hash(name, pw, salt):
         return True
 
+def valid_login(username, password):
+	q = User.all()
+	q.filter("username =", username)
+	if(q.count() == 0):
+		return False
+	else:
+		user = q.get()
+		if valid_pw(user.username, password, user.password_hash):
+			return user.key().id()
+		else:
+			return False
+
 class User(db.Model):
 	username = db.StringProperty(required=True)
 	password_hash = db.StringProperty(required=True)
@@ -138,6 +150,32 @@ class MainPage(Handler):
 
 			self.redirect('/welcome')
 
+class LoginHandler(Handler):
+	def get(self):
+		self.render_login()
+	def post(self):
+		username = self.request.get("username")
+		password = self.request.get("password")
+
+		if valid_username(username) and valid_password(password):
+			id = valid_login(username, password)
+			if id:
+				id = str(id)
+				id_cookie = 'id=' + make_secure_val(id)
+
+				id_cookie += '; Path=/'
+
+				self.response.headers.add_header('Set-Cookie', id_cookie)
+
+				self.redirect('/welcome')
+			else:
+				self.render_login(username = username, error_message="Invalid login")
+		else:
+			self.render_login(username = username, error_message="Invalid login")
+
+	def render_login(self, username="", error_message=""):
+		self.render("login.html", username=username, error_message=error_message)
+
 class WelcomeHandler(Handler):
 	def get(self):
 		id_cookie = self.request.cookies.get('id')
@@ -151,7 +189,14 @@ class WelcomeHandler(Handler):
 		else:
 			self.write('Invalid authorization')
 
+class LogoutHandler(Handler):
+	def get(self):
+		self.response.headers.add_header('Set-Cookie', 'id=; Path=/')
+		self.redirect('/signup')
+
 app = webapp2.WSGIApplication([
 	('/signup', MainPage),
-	('/welcome', WelcomeHandler)
+	('/login', LoginHandler),
+	('/welcome', WelcomeHandler),
+	('/logout', LogoutHandler)
 ], debug=True)
